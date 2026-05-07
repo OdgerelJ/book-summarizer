@@ -1,6 +1,6 @@
 'use client';
 
-import React, {useEffect, useState} from 'react';
+import React, {useState} from 'react';
 
 import {books, categories} from '@/lib/books';
 import type {Book} from '@/lib/books';
@@ -8,32 +8,43 @@ import {COPY_RESET_DELAY_MS, FILTER_TABS, STORAGE_KEYS} from '@/lib/constants';
 import {BookSidebar} from '@/components/BookSidebar';
 import {SummaryPanel} from '@/components/SummaryPanel';
 
+function readLocalSet(key: string): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  const stored = localStorage.getItem(key);
+  return stored ? new Set(JSON.parse(stored) as string[]) : new Set();
+}
+
+function readLocalRecord(key: string): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  const stored = localStorage.getItem(key);
+  return stored ? (JSON.parse(stored) as Record<string, string>) : {};
+}
+
 export default function Home(): React.JSX.Element {
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [summary, setSummary] = useState<string>('');
   const [isStreaming, setIsStreaming] = useState<boolean>(false);
   const [activeCategory, setActiveCategory] = useState<string>(FILTER_TABS.ALL);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
-  const [readIds, setReadIds] = useState<Set<string>>(new Set());
-  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [savedIds, setSavedIds] = useState<Set<string>>(
+    () => readLocalSet(STORAGE_KEYS.SAVED_BOOKS),
+  );
+  const [readIds, setReadIds] = useState<Set<string>>(
+    () => readLocalSet(STORAGE_KEYS.READ_BOOKS),
+  );
+  const [notes, setNotes] = useState<Record<string, string>>(
+    () => readLocalRecord(STORAGE_KEYS.BOOK_NOTES),
+  );
   const [isCopied, setIsCopied] = useState<boolean>(false);
-
-  useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.SAVED_BOOKS);
-    if (saved) setSavedIds(new Set(JSON.parse(saved) as string[]));
-
-    const read = localStorage.getItem(STORAGE_KEYS.READ_BOOKS);
-    if (read) setReadIds(new Set(JSON.parse(read) as string[]));
-
-    const savedNotes = localStorage.getItem(STORAGE_KEYS.BOOK_NOTES);
-    if (savedNotes) setNotes(JSON.parse(savedNotes) as Record<string, string>);
-  }, []);
 
   function toggleSave(bookId: string): void {
     setSavedIds((prev) => {
       const next = new Set(prev);
-      next.has(bookId) ? next.delete(bookId) : next.add(bookId);
+      if (next.has(bookId)) {
+        next.delete(bookId);
+      } else {
+        next.add(bookId);
+      }
       localStorage.setItem(STORAGE_KEYS.SAVED_BOOKS, JSON.stringify([...next]));
       return next;
     });
@@ -42,7 +53,11 @@ export default function Home(): React.JSX.Element {
   function toggleRead(bookId: string): void {
     setReadIds((prev) => {
       const next = new Set(prev);
-      next.has(bookId) ? next.delete(bookId) : next.add(bookId);
+      if (next.has(bookId)) {
+        next.delete(bookId);
+      } else {
+        next.add(bookId);
+      }
       localStorage.setItem(STORAGE_KEYS.READ_BOOKS, JSON.stringify([...next]));
       return next;
     });
